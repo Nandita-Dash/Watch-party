@@ -40,6 +40,16 @@ export function savePlaybackState(roomId, { isPlaying, positionSeconds, updatedA
   ).run(isPlaying ? 1 : 0, positionSeconds, updatedAt, roomId);
 }
 
+function mapMessage(row) {
+  return {
+    id: row.id,
+    roomId: row.room_id,
+    senderName: row.sender_name,
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
 export function addMessage({ roomId, senderName, body }) {
   const createdAt = Date.now();
   const info = db
@@ -56,5 +66,18 @@ export function getRecentMessages(roomId, limit = 50) {
       `SELECT * FROM messages WHERE room_id = ? ORDER BY created_at DESC LIMIT ?`
     )
     .all(roomId, limit)
-    .reverse();
+    .reverse()
+    .map(mapMessage);
+}
+
+// Messages that landed after `sinceId` — used to catch a client up after it
+// (re)connects, since a Socket.IO reconnect is a brand-new connection and
+// misses any broadcasts sent while the previous one was down.
+export function getMessagesSince(roomId, sinceId, limit = 200) {
+  return db
+    .prepare(
+      `SELECT * FROM messages WHERE room_id = ? AND id > ? ORDER BY id ASC LIMIT ?`
+    )
+    .all(roomId, sinceId, limit)
+    .map(mapMessage);
 }

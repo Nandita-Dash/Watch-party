@@ -5,6 +5,7 @@ import {
   getPlaybackState,
   setRoomVideo,
   addMessage,
+  getMessagesSince,
 } from "../models/rooms.js";
 
 // roomId -> Map<socketId, { userId, name }>
@@ -101,6 +102,17 @@ export function attachSocketServer(io) {
       if (!trimmed) return;
       const message = addMessage({ roomId, senderName: name, body: trimmed });
       io.to(channel).emit("chat:message", message);
+    });
+
+    // Reconnect replay: the client reports the newest message id it already
+    // has (from REST history or earlier live messages) and gets back
+    // anything that landed while it was disconnected — a Socket.IO
+    // reconnect is a brand-new connection, so broadcasts sent during the
+    // gap are otherwise lost to that client.
+    socket.on("chat:sync", (lastMessageId) => {
+      const since = Number.isInteger(lastMessageId) ? lastMessageId : 0;
+      const missed = getMessagesSince(roomId, since);
+      if (missed.length) socket.emit("chat:missed", missed);
     });
 
     socket.on("disconnect", () => {

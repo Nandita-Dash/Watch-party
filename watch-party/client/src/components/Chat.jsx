@@ -4,13 +4,43 @@ export default function Chat({ socket, initialMessages, you }) {
   const [messages, setMessages] = useState(initialMessages || []);
   const [draft, setDraft] = useState("");
   const listRef = useRef(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   useEffect(() => {
     function onMessage(message) {
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) =>
+        prev.some((m) => m.id === message.id) ? prev : [...prev, message]
+      );
     }
+
+    function onMissed(missed) {
+      setMessages((prev) => {
+        const known = new Set(prev.map((m) => m.id));
+        const toAdd = missed.filter((m) => !known.has(m.id));
+        if (!toAdd.length) return prev;
+        return [...prev, ...toAdd].sort((a, b) => a.id - b.id);
+      });
+    }
+
+    // Ask for anything sent while this socket was offline. Runs on every
+    // (re)connect — including the very first one, in case a message landed
+    // in the gap between the REST history fetch and the socket joining.
+    function onConnect() {
+      const lastId = messagesRef.current.reduce((max, m) => Math.max(max, m.id), 0);
+      socket.emit("chat:sync", lastId);
+    }
+
     socket.on("chat:message", onMessage);
-    return () => socket.off("chat:message", onMessage);
+    socket.on("chat:missed", onMissed);
+    socket.on("connect", onConnect);
+    if (socket.connected) onConnect();
+
+    return () => {
+      socket.off("chat:message", onMessage);
+      socket.off("chat:missed", onMissed);
+      socket.off("connect", onConnect);
+    };
   }, [socket]);
 
   useEffect(() => {
