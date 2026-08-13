@@ -1,9 +1,16 @@
 import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, "..", "data", "watchparty.db");
+const dataDir = path.join(__dirname, "..", "data");
+const dbPath = path.join(dataDir, "watchparty.db");
+
+// The data/ directory is gitignored (it only holds the local SQLite file),
+// so a fresh clone/deploy won't have it yet — DatabaseSync doesn't create
+// missing parent directories itself.
+fs.mkdirSync(dataDir, { recursive: true });
 
 export const db = new DatabaseSync(dbPath);
 db.exec("PRAGMA journal_mode = WAL;");

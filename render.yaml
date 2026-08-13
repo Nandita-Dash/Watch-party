@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: watch-party-server
+    runtime: node
+    rootDir: watch-party/server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_ORIGIN
+        sync: false
