@@ -68,18 +68,37 @@ cd client && npm install && npm run dev      # http://localhost:5173
 ```
 
 Open two browser tabs/windows, create a room in one, join with the room code
-in the other, and load a direct video URL (any public `.mp4` link works, e.g.
-`https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4`).
+in the other, and load a video for everyone — either a direct file URL (any
+public `.mp4` link works, e.g.
+`https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4`)
+or a YouTube link (`https://youtube.com/watch?v=…`, `youtu.be/…`, etc.).
 
 There's also a scripted two-client demo (`client/scripts/demo-flow.mjs`) that
 exercises the full flow — room creation, join, presence, playback sync, and
 chat — directly against the running server, useful for verifying the
 real-time layer without opening a browser.
 
+## Multiple video sources, one sync engine
+
+The sync engine (clock offset, drift correction, play/pause/seek broadcast)
+is provider-agnostic — it drives a small player adapter interface
+(`getCurrentTime`/`seekTo`/`play`/`pause`/`setPlaybackRate`/`isPaused`)
+rather than talking to a `<video>` element directly. Two adapters exist
+today:
+
+- **Direct video files** — a native `<video>` element.
+- **YouTube** — the YouTube IFrame Player API
+  ([`youtubePlayer.js`](client/src/lib/youtubePlayer.js)), which has no
+  native "seeked" event (positions are polled and a large jump is treated
+  as a user scrub) and only accepts a fixed, video-specific set of playback
+  rates, so this adapter reports `supportsRateNudge: false` — drift on
+  YouTube is corrected with hard seeks only, not the smooth rate nudge used
+  for direct files.
+
 ## What's deliberately out of scope (v1)
 
-- YouTube/streaming-service embeds (would need each provider's player SDK —
-  the sync engine itself is provider-agnostic and could drive one)
+- Other streaming-service embeds beyond YouTube (Vimeo, Twitch, etc. — each
+  needs its own player SDK adapter)
 - Persistent accounts (guest identity only)
 - Host-only playback controls (currently collaborative — anyone can
   play/pause/seek)
@@ -87,6 +106,4 @@ real-time layer without opening a browser.
 ## Possible next steps
 
 - Host-only controls with a "request control" flow for others
-- Reconnect replay: catch a client up on missed chat while it was offline
 - WebRTC voice chat alongside text chat
-- YouTube IFrame API adapter using the same sync engine
