@@ -6,7 +6,12 @@ services:
     rootDir: watch-party
     # The client is built first and the server serves the resulting dist/ —
     # one service, one origin, so no CORS and no build-time API URL.
-    buildCommand: npm --prefix client ci && npm --prefix client run build && npm --prefix server ci
+    #
+    # --include=dev is required: NODE_ENV=production (set below, for runtime)
+    # makes npm skip devDependencies, and Vite is one — without this the build
+    # fails with "vite: command not found". The server install deliberately
+    # omits them, since nothing there needs devDependencies at runtime.
+    buildCommand: npm --prefix client ci --include=dev && npm --prefix client run build && npm --prefix server ci
     startCommand: npm --prefix server start
     healthCheckPath: /api/health
     envVars:
