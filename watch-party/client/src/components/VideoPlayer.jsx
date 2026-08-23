@@ -23,6 +23,7 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
   const [driftMs, setDriftMs] = useState(null);
   const [roundTripMs, setRoundTripMs] = useState(null);
   const [lastActionBy, setLastActionBy] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   const youtubeId = extractYouTubeId(videoUrl);
 
@@ -119,13 +120,22 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
       stateRef.current = payload.playback;
       hasSeededPosition.current = false;
       setLastActionBy(payload.by || null);
+      setLoadError(null);
+    }
+
+    // Only the sender gets this — the server refused the URL, so without
+    // surfacing it the "Load for everyone" button would appear to do nothing.
+    function onVideoRejected({ error }) {
+      setLoadError(error || "That video URL couldn't be loaded.");
     }
 
     socket.on("playback:state", onPlaybackState);
     socket.on("video:changed", onVideoChanged);
+    socket.on("video:rejected", onVideoRejected);
     return () => {
       socket.off("playback:state", onPlaybackState);
       socket.off("video:changed", onVideoChanged);
+      socket.off("video:rejected", onVideoRejected);
     };
   }, [socket]);
 
@@ -185,6 +195,7 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
   function handleLoadVideo(e) {
     e.preventDefault();
     if (!loadInput.trim()) return;
+    setLoadError(null);
     socket.emit("video:load", { videoUrl: loadInput.trim() });
     setLoadInput("");
   }
@@ -218,6 +229,8 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
         />
         <button type="submit">Load for everyone</button>
       </form>
+
+      {loadError && <p className="error">{loadError}</p>}
 
       <div className="sync-readout">
         <span>drift: {driftMs === null ? "—" : `${driftMs} ms`}</span>

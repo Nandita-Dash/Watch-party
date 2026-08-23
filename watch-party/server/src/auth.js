@@ -1,5 +1,12 @@
 import jwt from "jsonwebtoken";
 
+// A missing secret used to fall back to a public constant, which would have
+// meant anyone could forge a token against a deployed instance. Fail at boot
+// instead — a deploy that can't authenticate should never start.
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET must be set in production");
+}
+
 const SECRET = process.env.JWT_SECRET || "dev-secret-change-in-production";
 const TOKEN_TTL = "12h";
 

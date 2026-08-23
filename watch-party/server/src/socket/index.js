@@ -7,9 +7,38 @@ import {
   addMessage,
   getMessagesSince,
 } from "../models/rooms.js";
+import { normalizeVideoUrl } from "../validate.js";
 
 // roomId -> Map<socketId, { userId, name }>
 const presenceByRoom = new Map();
+
+// Chat messages and playback actions each perform a *synchronous* SQLite write,
+// which blocks the event loop for everyone connected — so one client spamming
+// events degrades every other participant, not just itself. A fixed window per
+// socket per event type is enough to contain that; the limits are far above
+// what the UI can produce by hand.
+const RATE_LIMITS = {
+  "chat:message": { limit: 5, windowMs: 1000 },
+  "playback:action": { limit: 10, windowMs: 1000 },
+  "video:load": { limit: 3, windowMs: 10000 },
+};
+
+function allow(socket, event) {
+  const rule = RATE_LIMITS[event];
+  if (!rule) return true;
+
+  const now = Date.now();
+  const windows = (socket.rateWindows ??= {});
+  const window = windows[event];
+
+  if (!window || now - window.start >= rule.windowMs) {
+    windows[event] = { start: now, count: 1 };
+    return true;
+  }
+  if (window.count >= rule.limit) return false;
+  window.count += 1;
+  return true;
+}
 
 function roomChannel(roomId) {
   return `room:${roomId}`;
@@ -60,6 +89,7 @@ export function attachSocketServer(io) {
     // --- Playback sync -------------------------------------------------
     socket.on("playback:action", ({ type, positionSeconds }) => {
       if (!["play", "pause", "seek"].includes(type)) return;
+      if (!allow(socket, "playback:action")) return;
       const updatedAt = Date.now();
       const isPlaying = type === "pause" ? false : type === "play" ? true : undefined;
 
@@ -82,11 +112,18 @@ export function attachSocketServer(io) {
     });
 
     socket.on("video:load", ({ videoUrl }) => {
-      if (!videoUrl || typeof videoUrl !== "string") return;
-      setRoomVideo(roomId, videoUrl);
+      if (!allow(socket, "video:load")) return;
+      // Rejected rather than sanitized: this URL lands in every participant's
+      // player, so a bad one shouldn't reach them in any form.
+      const normalized = normalizeVideoUrl(videoUrl);
+      if (!normalized) {
+        socket.emit("video:rejected", { error: "That doesn't look like a valid video URL." });
+        return;
+      }
+      setRoomVideo(roomId, normalized);
       const state = getPlaybackState(roomId);
       io.to(channel).emit("video:changed", {
-        videoUrl,
+        videoUrl: normalized,
         by: name,
         playback: {
           isPlaying: !!state.is_playing,
@@ -98,8 +135,9 @@ export function attachSocketServer(io) {
 
     // --- Chat ------------------------------------------------------------
     socket.on("chat:message", ({ body }) => {
-      const trimmed = (body || "").trim().slice(0, 1000);
+      const trimmed = (typeof body === "string" ? body : "").trim().slice(0, 1000);
       if (!trimmed) return;
+      if (!allow(socket, "chat:message")) return;
       const message = addMessage({ roomId, senderName: name, body: trimmed });
       io.to(channel).emit("chat:message", message);
     });
