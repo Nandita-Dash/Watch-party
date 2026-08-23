@@ -110,6 +110,71 @@ There's also a scripted two-client integration check
 join, presence, playback sync, and chat directly against the running server —
 useful for verifying the real-time layer without a browser.
 
+## Deploying
+
+The app deploys as a **single Render web service**: the client is built first
+and Express serves the resulting `dist/` alongside the API. Because both halves
+share one origin there's no CORS to configure and no API URL baked into the
+bundle at build time — the two things most likely to silently break a split
+deployment.
+
+```bash
+# what Render runs, reproduced locally
+cd watch-party/client && npm ci && npm run build
+cd ../server && npm ci && NODE_ENV=production JWT_SECRET=dev npm start
+# whole app on http://localhost:4000
+```
+
+To deploy: push to GitHub, then in Render choose **New → Blueprint** and point
+it at the repo. `render.yaml` describes the whole service, generates
+`JWT_SECRET` automatically, and health-checks `/api/health`. Node is pinned to
+22.20 because the database uses the built-in `node:sqlite` module, which needs
+Node ≥ 22.5.
+
+Two things worth knowing about the free tier:
+
+- **It sleeps after 15 minutes idle.** The first visitor after that waits ~50s,
+  and since free instances have no persistent disk, the SQLite file resets and
+  existing room codes stop working. The bundled keep-awake workflow below
+  prevents both.
+- **Run exactly one instance.** Presence is held in a process-local `Map` and
+  there's no Redis adapter, so a second replica would split rooms — participants
+  on different instances wouldn't see each other or receive each other's
+  play/pause.
+
+### Keeping it awake
+
+`.github/workflows/keep-awake.yml` pings `/api/health` on a schedule so the
+service never idles long enough to be spun down. After deploying, set the target
+URL once:
+
+**Settings → Secrets and variables → Actions → Variables → New variable**
+
+| Name | Value |
+| --- | --- |
+| `PING_URL` | `https://<your-service>.onrender.com/api/health` |
+
+Until that variable exists the workflow logs a reminder and exits successfully,
+so it never fails noisily on a fresh clone. You can also run it on demand from
+the Actions tab, and because it fails the run after three unsuccessful attempts
+it doubles as a basic uptime alarm.
+
+It runs every 10 minutes rather than 15 deliberately — 15 would race Render's
+own idle threshold exactly, and GitHub's scheduled runs are best-effort and
+frequently start several minutes late. Actions minutes are unlimited on public
+repositories, so this is free.
+
+Two caveats worth knowing:
+
+- **GitHub disables scheduled workflows after 60 days without a commit** to the
+  repository. If the project goes quiet, re-enable it from the Actions tab.
+- Keeping one service up continuously uses ~744 of Render's 750 free instance
+  hours per month, which is fine for this service alone but leaves no headroom
+  for a second free service on the same account.
+
+If you'd rather not depend on GitHub's scheduler, any external uptime monitor
+pointed at the same URL does the same job with more reliable timing.
+
 ## Roadmap
 
 - Host-only playback controls with a "request control" flow

@@ -1,4 +1,9 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
+// In production the API is served from the same origin as this app, so an empty
+// base yields same-origin requests and there's nothing to configure at build
+// time. In dev the client runs on :5173 and the API on :4000, so fall back to
+// the local server rather than making every developer create a .env file.
+const API_BASE =
+  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:4000" : "");
 
 async function request(path, { method = "GET", body, token } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
