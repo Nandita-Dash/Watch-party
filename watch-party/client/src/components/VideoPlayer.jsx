@@ -202,23 +202,28 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
 
   return (
     <div className="player">
-      {youtubeId ? (
-        <div className="youtube-frame" ref={youtubeContainerRef} />
-      ) : videoUrl ? (
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          controls
-          onLoadedMetadata={seedPosition}
-          onPlay={() => !suppressRef.current && emitAction("play")}
-          onPause={() => !suppressRef.current && emitAction("pause")}
-          onSeeked={() => !suppressRef.current && emitAction("seek")}
-        />
-      ) : (
-        <div className="player-empty">
-          No video loaded yet — paste a direct video URL or YouTube link below.
-        </div>
-      )}
+      {/* The stage is what the responsive layout sizes — it hands the frame
+          whatever height is left over and keeps it 16:9. */}
+      <div className="player-stage">
+        {youtubeId ? (
+          <div className="youtube-frame" ref={youtubeContainerRef} />
+        ) : videoUrl ? (
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            playsInline
+            onLoadedMetadata={seedPosition}
+            onPlay={() => !suppressRef.current && emitAction("play")}
+            onPause={() => !suppressRef.current && emitAction("pause")}
+            onSeeked={() => !suppressRef.current && emitAction("seek")}
+          />
+        ) : (
+          <div className="player-empty">
+            No video loaded yet — paste a direct video URL or YouTube link below.
+          </div>
+        )}
+      </div>
 
       <form className="load-form" onSubmit={handleLoadVideo}>
         <input
