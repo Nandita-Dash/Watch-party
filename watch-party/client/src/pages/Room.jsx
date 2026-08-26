@@ -14,6 +14,9 @@ export default function Room() {
   const [socket, setSocket] = useState(null);
   const [connError, setConnError] = useState(null);
   const [copied, setCopied] = useState(false);
+  // Which sidebar panel is showing. Only reachable below the two-column
+  // breakpoint — wider layouts show both and ignore this.
+  const [sidebarTab, setSidebarTab] = useState("chat");
 
   const token = useMemo(() => loadToken(code), [code]);
 
@@ -72,7 +75,7 @@ export default function Room() {
   return (
     <div className="room">
       <header className="room-header">
-        <div>
+        <div className="room-title">
           <h2>{data.room.name}</h2>
           <button className="code-pill" onClick={handleCopyInvite} title="Copy invite link">
             {code} {copied ? "· copied!" : "· copy invite"}
@@ -93,7 +96,23 @@ export default function Room() {
             updatedAt: data.playback.updated_at,
           }}
         />
-        <aside className="room-sidebar">
+        <aside className="room-sidebar" data-tab={sidebarTab}>
+          <div className="sidebar-tabs">
+            <button
+              className={sidebarTab === "chat" ? "active" : ""}
+              aria-pressed={sidebarTab === "chat"}
+              onClick={() => setSidebarTab("chat")}
+            >
+              Chat
+            </button>
+            <button
+              className={sidebarTab === "people" ? "active" : ""}
+              aria-pressed={sidebarTab === "people"}
+              onClick={() => setSidebarTab("people")}
+            >
+              People
+            </button>
+          </div>
           <ParticipantList socket={socket} you={data.you.name} />
           <Chat socket={socket} initialMessages={data.messages} you={data.you.name} />
         </aside>
