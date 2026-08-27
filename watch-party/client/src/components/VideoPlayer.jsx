@@ -23,6 +23,7 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
   const [driftMs, setDriftMs] = useState(null);
   const [roundTripMs, setRoundTripMs] = useState(null);
   const [lastActionBy, setLastActionBy] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   const youtubeId = extractYouTubeId(videoUrl);
 
@@ -119,13 +120,22 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
       stateRef.current = payload.playback;
       hasSeededPosition.current = false;
       setLastActionBy(payload.by || null);
+      setLoadError(null);
+    }
+
+    // Only the sender gets this — the server refused the URL, so without
+    // surfacing it the "Load for everyone" button would appear to do nothing.
+    function onVideoRejected({ error }) {
+      setLoadError(error || "That video URL couldn't be loaded.");
     }
 
     socket.on("playback:state", onPlaybackState);
     socket.on("video:changed", onVideoChanged);
+    socket.on("video:rejected", onVideoRejected);
     return () => {
       socket.off("playback:state", onPlaybackState);
       socket.off("video:changed", onVideoChanged);
+      socket.off("video:rejected", onVideoRejected);
     };
   }, [socket]);
 
@@ -185,33 +195,39 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
   function handleLoadVideo(e) {
     e.preventDefault();
     if (!loadInput.trim()) return;
+    setLoadError(null);
     socket.emit("video:load", { videoUrl: loadInput.trim() });
     setLoadInput("");
   }
 
   return (
     <div className="player">
-      {youtubeId ? (
-        <div className="youtube-frame" ref={youtubeContainerRef} />
-      ) : videoUrl ? (
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          controls
-          onLoadedMetadata={seedPosition}
-          onPlay={() => !suppressRef.current && emitAction("play")}
-          onPause={() => !suppressRef.current && emitAction("pause")}
-          onSeeked={() => !suppressRef.current && emitAction("seek")}
-        />
-      ) : (
-        <div className="player-empty">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="5" width="15" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M22 8.5v7l-5-2.7v-1.6l5-2.7z" fill="currentColor" />
-          </svg>
-          <span>No video loaded yet — paste a direct video URL or YouTube link below.</span>
-        </div>
-      )}
+      {/* The stage is what the responsive layout sizes — it hands the frame
+          whatever height is left over and keeps it 16:9. */}
+      <div className="player-stage">
+        {youtubeId ? (
+          <div className="youtube-frame" ref={youtubeContainerRef} />
+        ) : videoUrl ? (
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            playsInline
+            onLoadedMetadata={seedPosition}
+            onPlay={() => !suppressRef.current && emitAction("play")}
+            onPause={() => !suppressRef.current && emitAction("pause")}
+            onSeeked={() => !suppressRef.current && emitAction("seek")}
+          />
+        ) : (
+          <div className="player-empty">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="5" width="15" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M22 8.5v7l-5-2.7v-1.6l5-2.7z" fill="currentColor" />
+            </svg>
+            <span>No video loaded yet — paste a direct video URL or YouTube link below.</span>
+          </div>
+        )}
+      </div>
 
       <form className="load-form" onSubmit={handleLoadVideo}>
         <input
@@ -222,6 +238,8 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
         />
         <button type="submit">Load for everyone</button>
       </form>
+
+      {loadError && <p className="error">{loadError}</p>}
 
       <div className="sync-readout">
         <span>

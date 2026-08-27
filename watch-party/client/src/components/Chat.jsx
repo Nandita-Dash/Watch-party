@@ -53,6 +53,23 @@ export default function Chat({ socket, initialMessages, you }) {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages]);
 
+  // On narrow screens the chat shares the sidebar with the participant list
+  // and is display:none while the other panel is showing — messages that
+  // arrive meanwhile can't be scrolled to, because the list has no height.
+  // Re-pin to the bottom whenever it gets its height back.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || typeof ResizeObserver === "undefined") return undefined;
+    let wasHidden = list.clientHeight === 0;
+    const observer = new ResizeObserver(() => {
+      const hidden = list.clientHeight === 0;
+      if (wasHidden && !hidden) list.scrollTo({ top: list.scrollHeight });
+      wasHidden = hidden;
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+
   function handleSubmit(e) {
     e.preventDefault();
     if (!draft.trim()) return;

@@ -1,12 +1,25 @@
 services:
   - type: web
-    name: watch-party-server
+    name: watch-party
     runtime: node
-    rootDir: watch-party/server
-    buildCommand: npm install
-    startCommand: npm start
+    plan: free
+    rootDir: watch-party
+    # The client is built first and the server serves the resulting dist/ —
+    # one service, one origin, so no CORS and no build-time API URL.
+    #
+    # --include=dev is required: NODE_ENV=production (set below, for runtime)
+    # makes npm skip devDependencies, and Vite is one — without this the build
+    # fails with "vite: command not found". The server install deliberately
+    # omits them, since nothing there needs devDependencies at runtime.
+    buildCommand: npm --prefix client ci --include=dev && npm --prefix client run build && npm --prefix server ci
+    startCommand: npm --prefix server start
+    healthCheckPath: /api/health
     envVars:
+      # node:sqlite needs >=22.5 and Vite 8 needs >=22.12 — pin rather than
+      # inherit whatever the platform defaults to.
+      - key: NODE_VERSION
+        value: 22.20.0
+      - key: NODE_ENV
+        value: production
       - key: JWT_SECRET
         generateValue: true
-      - key: CLIENT_ORIGIN
-        sync: false
