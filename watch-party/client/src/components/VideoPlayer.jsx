@@ -205,7 +205,11 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
         />
       ) : (
         <div className="player-empty">
-          No video loaded yet — paste a direct video URL or YouTube link below.
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="5" width="15" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M22 8.5v7l-5-2.7v-1.6l5-2.7z" fill="currentColor" />
+          </svg>
+          <span>No video loaded yet — paste a direct video URL or YouTube link below.</span>
         </div>
       )}
 
@@ -220,8 +224,11 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback }
       </form>
 
       <div className="sync-readout">
-        <span>drift: {driftMs === null ? "—" : `${driftMs} ms`}</span>
-        <span>latency: {roundTripMs === null ? "—" : `${roundTripMs} ms`}</span>
+        <span>
+          <span className="readout-dot" />
+          drift {driftMs === null ? "—" : `${driftMs} ms`}
+        </span>
+        <span>latency {roundTripMs === null ? "—" : `${roundTripMs} ms`}</span>
         {lastActionBy && <span>last action by {lastActionBy}</span>}
       </div>
     </div>

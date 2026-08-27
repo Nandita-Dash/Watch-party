@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { avatarClassFor, initialsFor } from "../lib/avatar.js";
 
 export default function ParticipantList({ socket, you }) {
   const [participants, setParticipants] = useState([]);
@@ -32,8 +33,9 @@ export default function ParticipantList({ socket, you }) {
       <ul>
         {participants.map((p) => (
           <li key={p.userId}>
+            <span className={`avatar avatar-sm ${avatarClassFor(p.name)}`}>{initialsFor(p.name)}</span>
+            <span className="presence-name">{p.name}</span>
             <span className="dot" />
-            {p.name}
             {p.name === you && <span className="you-tag">you</span>}
           </li>
         ))}

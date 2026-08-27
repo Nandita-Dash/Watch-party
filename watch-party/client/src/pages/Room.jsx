@@ -14,6 +14,7 @@ export default function Room() {
   const [socket, setSocket] = useState(null);
   const [connError, setConnError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [connected, setConnected] = useState(false);
 
   const token = useMemo(() => loadToken(code), [code]);
 
@@ -32,6 +33,9 @@ export default function Room() {
         setData(res);
         createdSocket = connectSocket(token);
         createdSocket.on("connect_error", (err) => setConnError(err.message));
+        createdSocket.on("connect", () => setConnected(true));
+        createdSocket.on("disconnect", () => setConnected(false));
+        setConnected(createdSocket.connected);
         setSocket(createdSocket);
       })
       .catch((err) => {
@@ -66,21 +70,44 @@ export default function Room() {
   }
 
   if (!data || !socket) {
-    return <div className="room-loading">Loading room…</div>;
+    return (
+      <div className="room-loading">
+        <div className="spinner" />
+        <span>Loading room…</span>
+      </div>
+    );
   }
 
   return (
     <div className="room">
       <header className="room-header">
-        <div>
-          <h2>{data.room.name}</h2>
+        <div className="room-header-left">
+          <div className="room-title-row">
+            <span className={`conn-dot ${connected ? "" : "offline"}`} title={connected ? "Connected" : "Reconnecting…"} />
+            <h2>{data.room.name}</h2>
+          </div>
           <button className="code-pill" onClick={handleCopyInvite} title="Copy invite link">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="9" y="9" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+              <path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" strokeWidth="2" />
+            </svg>
             {code} {copied ? "· copied!" : "· copy invite"}
           </button>
         </div>
-        <button className="leave-btn" onClick={handleLeave}>
-          Leave
-        </button>
+        <div className="header-actions">
+          <button className="leave-btn" onClick={handleLeave}>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Leave
+          </button>
+        </div>
       </header>
 
       <div className="room-body">

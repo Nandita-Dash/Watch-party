@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { avatarClassFor, initialsFor } from "../lib/avatar.js";
+
+function formatTime(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
 
 export default function Chat({ socket, initialMessages, you }) {
   const [messages, setMessages] = useState(initialMessages || []);
@@ -60,8 +66,18 @@ export default function Chat({ socket, initialMessages, you }) {
         {messages.length === 0 && <p className="chat-empty">No messages yet — say hi.</p>}
         {messages.map((m) => (
           <div key={m.id} className={`chat-msg ${m.senderName === you ? "mine" : ""}`}>
-            <span className="chat-sender">{m.senderName}</span>
-            <span className="chat-body">{m.body}</span>
+            <span className={`avatar avatar-sm ${avatarClassFor(m.senderName)}`}>
+              {initialsFor(m.senderName)}
+            </span>
+            <div className="chat-msg-content">
+              <div className="chat-meta">
+                <span className="chat-sender">{m.senderName}</span>
+                <span className="chat-time">{formatTime(m.createdAt)}</span>
+              </div>
+              <div className="chat-bubble">
+                <span className="chat-body">{m.body}</span>
+              </div>
+            </div>
           </div>
         ))}
       </div>
