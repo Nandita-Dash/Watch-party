@@ -12,15 +12,28 @@ import { normalizeVideoUrl } from "../validate.js";
 // roomId -> Map<socketId, { userId, name }>
 const presenceByRoom = new Map();
 
+// roomId -> Map<socketId, { userId, name }> — who currently has voice chat
+// open. Separate from presenceByRoom because being in the room and being in
+// voice are independent (voice is opt-in). The server never touches actual
+// audio — it only relays WebRTC signaling messages between the two peers
+// establishing a connection, same as a phone switchboard.
+const voiceByRoom = new Map();
+
 // Chat messages and playback actions each perform a *synchronous* SQLite write,
 // which blocks the event loop for everyone connected — so one client spamming
 // events degrades every other participant, not just itself. A fixed window per
 // socket per event type is enough to contain that; the limits are far above
-// what the UI can produce by hand.
+// what the UI can produce by hand. The voice:* limits exist for the same
+// flooding concern even though they don't touch the DB.
 const RATE_LIMITS = {
   "chat:message": { limit: 5, windowMs: 1000 },
   "playback:action": { limit: 10, windowMs: 1000 },
   "video:load": { limit: 3, windowMs: 10000 },
+  "voice:join": { limit: 5, windowMs: 5000 },
+  "voice:leave": { limit: 5, windowMs: 5000 },
+  "voice:offer": { limit: 10, windowMs: 5000 },
+  "voice:answer": { limit: 10, windowMs: 5000 },
+  "voice:ice-candidate": { limit: 100, windowMs: 5000 },
 };
 
 function allow(socket, event) {
@@ -48,6 +61,12 @@ function listPresence(roomId) {
   const map = presenceByRoom.get(roomId);
   if (!map) return [];
   return [...map.values()];
+}
+
+function listVoice(roomId) {
+  const map = voiceByRoom.get(roomId);
+  if (!map) return [];
+  return [...map.entries()].map(([socketId, info]) => ({ socketId, ...info }));
 }
 
 export function attachSocketServer(io) {
@@ -153,6 +172,41 @@ export function attachSocketServer(io) {
       if (missed.length) socket.emit("chat:missed", missed);
     });
 
+    // --- Voice chat signaling (mesh WebRTC) -------------------------------
+    // Joining is opt-in and independent of room presence. The joiner always
+    // initiates: it gets the current roster and sends an offer to each
+    // existing member, while existing members just wait for that offer —
+    // this one-directional rule is what avoids two peers glaring at each
+    // other with simultaneous offers in a mesh topology.
+    socket.on("voice:join", () => {
+      if (!allow(socket, "voice:join")) return;
+      if (!voiceByRoom.has(roomId)) voiceByRoom.set(roomId, new Map());
+      const voiceMap = voiceByRoom.get(roomId);
+      if (voiceMap.has(socket.id)) return;
+      socket.emit("voice:roster", listVoice(roomId));
+      voiceMap.set(socket.id, { userId, name });
+      socket.to(channel).emit("voice:peer-joined", { socketId: socket.id, userId, name });
+    });
+
+    socket.on("voice:leave", () => {
+      if (!allow(socket, "voice:leave")) return;
+      const voiceMap = voiceByRoom.get(roomId);
+      if (!voiceMap?.has(socket.id)) return;
+      voiceMap.delete(socket.id);
+      if (voiceMap.size === 0) voiceByRoom.delete(roomId);
+      socket.to(channel).emit("voice:peer-left", { socketId: socket.id });
+    });
+
+    // Pure relay, targeted at one peer by socket id — never broadcast to the
+    // room. The server never inspects the SDP/ICE payloads themselves.
+    for (const event of ["voice:offer", "voice:answer", "voice:ice-candidate"]) {
+      socket.on(event, ({ to, ...payload } = {}) => {
+        if (!allow(socket, event)) return;
+        if (typeof to !== "string") return;
+        io.to(to).emit(event, { ...payload, from: socket.id });
+      });
+    }
+
     socket.on("disconnect", () => {
       const map = presenceByRoom.get(roomId);
       if (map) {
@@ -160,6 +214,13 @@ export function attachSocketServer(io) {
         if (map.size === 0) presenceByRoom.delete(roomId);
       }
       socket.to(channel).emit("presence:leave", { userId, name });
+
+      const voiceMap = voiceByRoom.get(roomId);
+      if (voiceMap?.has(socket.id)) {
+        voiceMap.delete(socket.id);
+        if (voiceMap.size === 0) voiceByRoom.delete(roomId);
+        socket.to(channel).emit("voice:peer-left", { socketId: socket.id });
+      }
     });
   });
 }
