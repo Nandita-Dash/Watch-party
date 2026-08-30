@@ -80,7 +80,22 @@ export default function Chat({ socket, initialMessages, you }) {
   return (
     <div className="chat">
       <div className="chat-list" ref={listRef}>
-        {messages.length === 0 && <p className="chat-empty">No messages yet — say hi.</p>}
+        {messages.length === 0 && (
+          <div className="empty-state">
+            <span className="empty-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.1-.6L3 21l1.8-5A8.4 8.4 0 1 1 21 11.5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <p>No messages yet — be the first to say hi.</p>
+          </div>
+        )}
         {messages.map((m) => (
           <div key={m.id} className={`chat-msg ${m.senderName === you ? "mine" : ""}`}>
             <span className={`avatar avatar-sm ${avatarClassFor(m.senderName)}`}>
