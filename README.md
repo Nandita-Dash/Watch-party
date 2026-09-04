@@ -7,13 +7,21 @@ even across different networks, devices, and clocks.
 free Render instance, so the first request after a quiet spell takes ~50s to
 wake up.
 
+![The Watch Party room: synced video player with custom controls on the left,
+participant list and room chat on the right, and a Synced indicator in the
+header.](docs/screenshot-room.jpg)
+
 A full-stack real-time application built to demonstrate systems-level
 engineering rather than CRUD: keeping playback synchronized across multiple
 clients requires actively correcting for network latency and clock
 disagreement, which is the core problem this project solves.
 
-**Stack:** React 19 · Node.js / Express · Socket.IO · SQLite (zero native
-dependencies) · JWT auth
+**Stack:** React 19 · Node.js / Express · Socket.IO · WebRTC · SQLite (zero
+native dependencies) · JWT auth
+
+| Landing | On a phone |
+| --- | --- |
+| ![The landing page](docs/screenshot-landing.jpg) | ![The room on a phone, with the sidebar switched to chat](docs/screenshot-mobile.jpg) |
 
 ---
 
@@ -22,10 +30,16 @@ dependencies) · JWT auth
 - **Create or join a room** with a short shareable code — no signup required
 - **Synchronized playback** — play, pause, and seek propagate to everyone in
   the room in real time
-- **Live chat** scoped to the room, persisted so it's there when you rejoin
+- **Direct video files or YouTube** — both drive the same sync engine through
+  a small player adapter interface
+- **Voice chat** — opt-in, peer-to-peer WebRTC audio alongside the video
+- **Live chat** scoped to the room, persisted and replayed on reconnect, so
+  messages sent while you were offline aren't lost
 - **Presence** — see who's currently in the room as they join and leave
-- **Self-correcting drift** — a visible latency/drift readout shows the sync
-  engine actively compensating for network conditions, live
+- **A live sync indicator** in the room header — `Syncing…` / `Synced` /
+  `Drifting`, with the exact drift and round-trip latency in its tooltip
+- **Works on any screen** — one-viewport layout, with the sidebar collapsing
+  to Chat / People tabs on phones
 
 ## Why this is harder than "just broadcast an event"
 
@@ -72,12 +86,48 @@ flowchart LR
     WS -- playback:state --> VB
     WS <--> DB
     API <--> DB
+    VA <-- WebRTC audio, direct between browsers --> VB
 ```
 
 Room lifecycle (create, join, fetch state) is plain REST with short-lived
 guest JWTs — no account system, matching how real watch-party products work.
 Everything that needs to happen live — playback sync, chat, presence, clock
-measurement — runs over a single Socket.IO connection.
+measurement, voice signaling — runs over a single Socket.IO connection. Voice
+*audio* never touches the server: it flows directly between browsers.
+
+### Realtime protocol
+
+| Event | Direction | Purpose |
+| --- | --- | --- |
+| `clock:ping` → `clock:pong` | client ↔ server | round-trip and offset measurement |
+| `playback:action` | client → server | play / pause / seek intent, with the client's position |
+| `playback:state` | server → room | the new authoritative `{ isPlaying, positionSeconds, updatedAt }` |
+| `video:load` → `video:changed` | client → room | swap the source everyone is watching |
+| `video:rejected` | server → sender | the URL was refused — only the sender hears it |
+| `chat:message` | client ↔ room | persisted, then broadcast |
+| `chat:sync` → `chat:missed` | client ↔ server | replay messages that arrived while this socket was offline |
+| `presence:list` / `:join` / `:leave` | server → room | who's in the room right now |
+| `voice:join` / `voice:leave` | client → server | opt in or out of voice, independently of room presence |
+| `voice:roster` / `voice:peer-joined` / `voice:peer-left` | server → client | who's currently in voice |
+| `voice:offer` / `voice:answer` / `voice:ice-candidate` | relayed, peer to peer | WebRTC signaling, targeted at one socket — never broadcast |
+
+Chat, playback actions, and video loads each perform a synchronous SQLite
+write, which blocks the event loop for every connected client — so all of
+them, plus the `voice:*` events, are rate limited per socket.
+
+### Voice chat
+
+Voice is a **full mesh**: every participant holds a direct `RTCPeerConnection`
+to every other. The server is a switchboard that relays offers, answers, and
+ICE candidates between two peers and never sees or forwards audio. The joiner
+always initiates — it fetches the roster and offers to each existing member,
+while existing members wait — which is what stops two peers from colliding
+with simultaneous offers.
+
+Two consequences worth knowing: a mesh is `n(n-1)/2` connections, so it suits
+small groups rather than large rooms, and signaling uses **public STUN with no
+TURN server**, so audio fails for the minority of participants behind
+symmetric NAT.
 
 ## Project structure
 
@@ -85,17 +135,24 @@ measurement — runs over a single Socket.IO connection.
 watch-party/
 ├── server/            Express API + Socket.IO sync engine + SQLite
 │   └── src/
-│       ├── routes/    room create/join REST endpoints
-│       ├── socket/     playback sync, chat, presence, clock ping/pong
+│       ├── routes/     room create/join REST endpoints
+│       ├── socket/     playback sync, chat, presence, clock, voice signaling
 │       └── models/     SQLite queries
 └── client/            React (Vite) app
     └── src/
-        ├── pages/      Home (create/join), Room (player + chat)
+        ├── pages/      Home (landing + create/join), Room (player + sidebar)
         ├── components/ VideoPlayer, Chat, ParticipantList
-        └── lib/        clockSync.js (the drift-correction math), api, socket
+        └── lib/        clockSync.js    the drift-correction math
+                        youtubePlayer.js YouTube IFrame adapter
+                        useVoiceChat.js  mesh WebRTC hook
+                        api, socket, session, avatar, useReveal
 ```
 
 ## Running it locally
+
+Requires **Node ≥ 22.12** — the database uses the built-in `node:sqlite`
+module (≥ 22.5) and the client builds with Vite 8 (≥ 22.12). No `.env` file is
+needed; the client falls back to `http://localhost:4000` in dev.
 
 ```bash
 # terminal 1 — API on http://localhost:4000
@@ -105,9 +162,10 @@ cd watch-party/server && npm install && npm run dev
 cd watch-party/client && npm install && npm run dev
 ```
 
-Open two browser tabs, create a room in one, join with its code in the
-other, paste a direct `.mp4` URL, and hit play — both tabs stay in sync, with
-a live drift/latency readout under the player.
+Open two browser windows — one normal, one incognito, since tokens live in
+`sessionStorage` and tabs in the same window share an identity. Create a room
+in one, join with its code in the other, load a video, and hit play: both stay
+in sync, and the header pill reports the drift.
 
 There's also a scripted two-client integration check
 (`watch-party/client/scripts/demo-flow.mjs`) that exercises room creation,
@@ -130,45 +188,48 @@ cd ../server && npm ci && NODE_ENV=production JWT_SECRET=dev npm start
 ```
 
 To deploy: push to GitHub, then in Render choose **New → Blueprint** and point
-it at the repo. `render.yaml` describes the whole service, generates
-`JWT_SECRET` automatically, and health-checks `/api/health`. Node is pinned to
-22.20 because the database uses the built-in `node:sqlite` module, which needs
-Node ≥ 22.5.
+it at the repo. `render.yaml` describes the whole service, pins Node to
+22.20.0, generates `JWT_SECRET` automatically, and health-checks `/api/health`.
 
-Two things worth knowing about the free tier:
+Three things worth knowing:
 
-- **It sleeps after 15 minutes idle.** The first visitor after that waits ~50s,
-  and since free instances have no persistent disk, the SQLite file resets and
-  existing room codes stop working. The bundled keep-awake workflow below
+- **The client install needs `--include=dev`.** Render sets
+  `NODE_ENV=production`, which makes npm skip devDependencies — and Vite is
+  one. Without the flag the build fails with `vite: command not found`.
+- **The free tier sleeps after 15 minutes idle.** The first visitor after that
+  waits ~50s, and since free instances have no persistent disk, the SQLite file
+  resets and existing room codes stop working. The keep-awake workflow below
   prevents both.
-- **Run exactly one instance.** Presence is held in a process-local `Map` and
-  there's no Redis adapter, so a second replica would split rooms — participants
-  on different instances wouldn't see each other or receive each other's
-  play/pause.
+- **Run exactly one instance.** Presence and the voice roster are process-local
+  `Map`s with no Redis adapter, so a second replica would split rooms —
+  participants on different instances wouldn't see each other, receive each
+  other's play/pause, or be able to reach each other in voice.
 
-### Keeping it awake
+<details>
+<summary><strong>Keeping the free instance awake</strong></summary>
 
 `.github/workflows/keep-awake.yml` pings `/api/health` on a schedule so the
 service never idles long enough to be spun down. After deploying, set the target
-URL once:
-
-**Settings → Secrets and variables → Actions → Variables → New variable**
+URL once, under **Settings → Secrets and variables → Actions → Variables → New
+variable**:
 
 | Name | Value |
 | --- | --- |
-| `PING_URL` | `https://<your-service>.onrender.com/api/health` |
+| `PING_URL` | `https://watch-party-cyqk.onrender.com/api/health` |
 
 Until that variable exists the workflow logs a reminder and exits successfully,
-so it never fails noisily on a fresh clone. You can also run it on demand from
-the Actions tab, and because it fails the run after three unsuccessful attempts
-it doubles as a basic uptime alarm.
+so it never fails noisily on a fresh clone — which also means a green run does
+not by itself prove anything is being pinged. Check a run's log for
+`PING_URL is not set` if the service is still going to sleep. You can trigger a
+ping by hand from the Actions tab, and because the job fails after three
+unsuccessful attempts it doubles as a basic uptime alarm.
 
 It runs every 10 minutes rather than 15 deliberately — 15 would race Render's
 own idle threshold exactly, and GitHub's scheduled runs are best-effort and
 frequently start several minutes late. Actions minutes are unlimited on public
 repositories, so this is free.
 
-Two caveats worth knowing:
+Two caveats:
 
 - **GitHub disables scheduled workflows after 60 days without a commit** to the
   repository. If the project goes quiet, re-enable it from the Actions tab.
@@ -179,10 +240,12 @@ Two caveats worth knowing:
 If you'd rather not depend on GitHub's scheduler, any external uptime monitor
 pointed at the same URL does the same job with more reliable timing.
 
+</details>
+
 ## Roadmap
 
 - Host-only playback controls with a "request control" flow
-- Reconnect replay for chat missed while offline
-- YouTube IFrame adapter using the same sync engine (the engine itself is
-  player-agnostic)
-- WebRTC voice chat alongside text chat
+- A TURN server, so voice works from behind symmetric NAT
+- More player adapters — Vimeo, Twitch — reusing the existing sync engine
+- Redis adapter for presence and the voice roster, so the service can run more
+  than one instance
