@@ -3,6 +3,10 @@
 Paste a video link, share a room code, watch together — perfectly in sync,
 even across different networks, devices, and clocks.
 
+**[▶ Open the live app](https://watch-party-cyqk.onrender.com)** — it runs on a
+free Render instance, so the first request after a quiet spell takes ~50s to
+wake up.
+
 A full-stack real-time application built to demonstrate systems-level
 engineering rather than CRUD: keeping playback synchronized across multiple
 clients requires actively correcting for network latency and clock
