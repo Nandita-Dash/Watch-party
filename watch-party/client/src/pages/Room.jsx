@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getRoom } from "../lib/api.js";
 import { loadToken, clearToken } from "../lib/session.js";
 import { connectSocket } from "../lib/socket.js";
@@ -11,6 +11,7 @@ import ParticipantList from "../components/ParticipantList.jsx";
 export default function Room() {
   const { code } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [socket, setSocket] = useState(null);
   const [connError, setConnError] = useState(null);
@@ -19,6 +20,9 @@ export default function Room() {
   // Which sidebar panel is showing. Only reachable below the two-column
   // breakpoint — wider layouts show both and ignore this.
   const [sidebarTab, setSidebarTab] = useState("chat");
+  // Set by the landing page's demo button. A sync demo needs a second viewer,
+  // so point the visitor at opening one rather than leaving them alone.
+  const [showDemoHint, setShowDemoHint] = useState(Boolean(location.state?.demo));
   // Purely presentational — VideoPlayer reports drift/latency here for the
   // header's sync indicator; the correction math lives entirely in VideoPlayer.
   const [syncInfo, setSyncInfo] = useState({ driftMs: null, roundTripMs: null, lastActionBy: null });
@@ -211,6 +215,23 @@ export default function Room() {
           </button>
         </div>
       </header>
+
+      {showDemoHint && (
+        <div className="demo-hint">
+          <p>
+            Open the invite link in another browser window to join as a second viewer, then play, pause or seek in
+            either one.
+          </p>
+          <button type="button" onClick={handleCopyInvite}>
+            {copied ? "Copied" : "Copy invite link"}
+          </button>
+          <button type="button" className="dismiss" onClick={() => setShowDemoHint(false)} aria-label="Dismiss">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <div className="room-body">
         <VideoPlayer
