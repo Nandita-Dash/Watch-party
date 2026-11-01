@@ -5,15 +5,18 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "data");
-const dbPath = path.join(dataDir, "watchparty.db");
+
+// Tests set DB_PATH=":memory:" so each run starts empty and never touches the
+// real file. Everything else uses the default on-disk location.
+const dbPath = process.env.DB_PATH || path.join(dataDir, "watchparty.db");
 
 // The data/ directory is gitignored (it only holds the local SQLite file),
 // so a fresh clone/deploy won't have it yet — DatabaseSync doesn't create
 // missing parent directories itself.
-fs.mkdirSync(dataDir, { recursive: true });
+if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 export const db = new DatabaseSync(dbPath);
-db.exec("PRAGMA journal_mode = WAL;");
+if (dbPath !== ":memory:") db.exec("PRAGMA journal_mode = WAL;");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS rooms (

@@ -2,66 +2,23 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createRoom, joinRoom } from "../lib/api.js";
 import { saveToken } from "../lib/session.js";
-import { useReveal } from "../lib/useReveal.js";
 
-const FEATURES = [
+const SAMPLE_VIDEO = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+
+const SYNC_STEPS = [
   {
-    title: "Frame-accurate sync",
-    desc: "Clock-calibrated playback keeps everyone within milliseconds, automatically.",
-    icon: (
-      <path
-        d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-17v5l3.5 2"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
+    title: "Clock offset",
+    desc: "Each browser measures how far its clock is from the server's, keeping the fastest of several round trips.",
   },
   {
-    title: "Live chat & presence",
-    desc: "See who's in the room and talk through the moment as it happens.",
-    icon: (
-      <path
-        d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.1-.6L3 21l1.8-5A8.4 8.4 0 1 1 21 11.5Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
+    title: "Projected position",
+    desc: "The server stores only the last play, pause or seek and when it happened. Every client works out where playback should be now.",
   },
   {
-    title: "Zero friction",
-    desc: "No installs, no accounts. Share a code, everyone's watching in seconds.",
-    icon: (
-      <path
-        d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ),
+    title: "Drift correction",
+    desc: "Every 300 ms the player compares itself to that target. Small gaps are closed by nudging playback speed, large ones by seeking.",
   },
 ];
-
-function Feature({ title, desc, icon }) {
-  const [ref, visible] = useReveal(0.3);
-  return (
-    <div ref={ref} className={`feature ${visible ? "in-view" : ""}`}>
-      <span className="feature-icon">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {icon}
-        </svg>
-      </span>
-      <div>
-        <h3>{title}</h3>
-        <p>{desc}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -70,9 +27,7 @@ export default function Home() {
   const [mode, setMode] = useState(prefillJoinCode ? "join" : "create");
   const [displayName, setDisplayName] = useState("");
   const [roomName, setRoomName] = useState("");
-  const [videoUrl, setVideoUrl] = useState(
-    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
-  );
+  const [videoUrl, setVideoUrl] = useState(SAMPLE_VIDEO);
   const [joinCode, setJoinCode] = useState(prefillJoinCode);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -89,6 +44,23 @@ export default function Home() {
       });
       saveToken(room.code, token);
       navigate(`/room/${room.code}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // One click, no form: a throwaway room with a sample video, so someone
+  // trying the app can see sync working before deciding to invite anyone.
+  async function handleDemo() {
+    setError(null);
+    setBusy(true);
+    try {
+      const guest = `Guest ${Math.floor(1000 + Math.random() * 9000)}`;
+      const { room, token } = await createRoom({ name: "Demo room", displayName: guest, videoUrl: SAMPLE_VIDEO });
+      saveToken(room.code, token);
+      navigate(`/room/${room.code}`, { state: { demo: true } });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -114,9 +86,6 @@ export default function Home() {
 
   return (
     <div className="home">
-      <div className="home-glow home-glow-1" />
-      <div className="home-glow home-glow-2" />
-
       <header className="home-nav">
         <div className="brand">
           <span className="mark">
@@ -126,28 +95,33 @@ export default function Home() {
           </span>
           <span>Watch Party</span>
         </div>
+        <a className="nav-link" href="https://github.com/Nandita-Dash/Watch-party" target="_blank" rel="noreferrer">
+          Source on GitHub
+        </a>
       </header>
 
       <section className="hero">
         <div className="hero-content">
-          <span className="eyebrow">Live · Synced · Together</span>
-          <h1 className="hero-title">
-            Watch anything, <span className="gradient-text">together</span>.
-          </h1>
+          <h1 className="hero-title">Watch videos in sync with friends</h1>
           <p className="hero-subtitle">
-            Frame-accurate playback sync, live chat, and zero friction — just share a link and press play.
+            Create a room, share the code, and everyone's player follows the same clock. Play, pause and seek reach
+            every viewer, and small drift is corrected before anyone notices.
           </p>
 
-          <div className="hero-features">
-            {FEATURES.map((f) => (
-              <Feature key={f.title} {...f} />
+          <h2 className="steps-heading">How it stays in sync</h2>
+          <ol className="sync-steps">
+            {SYNC_STEPS.map((step) => (
+              <li key={step.title}>
+                <h3>{step.title}</h3>
+                <p>{step.desc}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
 
         <div className="hero-panel">
-          <h2>Get started</h2>
-          <p className="subtitle">Create a room or jump into one with a code.</p>
+          <h2>Start watching</h2>
+          <p className="subtitle">Create a room or join one with a code.</p>
 
           <div className="tabs">
             <button className={mode === "create" ? "active" : ""} onClick={() => setMode("create")}>
@@ -196,6 +170,13 @@ export default function Home() {
               </button>
             </form>
           )}
+
+          <div className="demo">
+            <button type="button" className="secondary-btn" onClick={handleDemo} disabled={busy}>
+              Try a demo room
+            </button>
+            <p>No name needed. Opens a room with a sample video.</p>
+          </div>
 
           {error && <p className="error">{error}</p>}
         </div>
