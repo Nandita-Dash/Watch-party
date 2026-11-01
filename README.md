@@ -17,8 +17,8 @@ others. Rooms also have chat, presence and peer-to-peer voice.
 window to watch from two places at once. It runs on a free Render instance, so
 the first request after a quiet spell takes ~50s to wake up.
 
-![The Watch Party room: synced video player with custom controls on the left,
-participant list and room chat on the right, and a Synced indicator in the
+![The Watch Party room playing the Avengers: Endgame trailer, with the
+participant list and room chat on the right and a Synced indicator in the
 header.](docs/screenshot-room.jpg)
 
 **Stack:** React 19 · Node.js / Express · Socket.IO · WebRTC · SQLite (zero
