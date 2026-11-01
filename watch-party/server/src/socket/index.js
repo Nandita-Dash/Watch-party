@@ -36,7 +36,7 @@ const RATE_LIMITS = {
   "voice:ice-candidate": { limit: 100, windowMs: 5000 },
 };
 
-function allow(socket, event) {
+export function allow(socket, event) {
   const rule = RATE_LIMITS[event];
   if (!rule) return true;
 
