@@ -1,5 +1,7 @@
 # Watch Party
 
+[![Tests](https://github.com/Nandita-Dash/Watch-party/actions/workflows/test.yml/badge.svg)](https://github.com/Nandita-Dash/Watch-party/actions/workflows/test.yml)
+
 Paste a video link, share a room code, watch together — perfectly in sync,
 even across different networks, devices, and clocks.
 

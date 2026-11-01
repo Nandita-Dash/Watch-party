@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        # The client and server are independent npm packages, so each gets its
+        # own install and test run rather than one shared job.
+        package: [client, server]
+    defaults:
+      run:
+        working-directory: watch-party/${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same Node version Render deploys with; node:sqlite needs >= 22.5.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: watch-party/.node-version
+          cache: npm
+          cache-dependency-path: watch-party/${{ matrix.package }}/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+
+      # Catches a broken production build before Render does.
+      - if: matrix.package == 'client'
+        run: npm run build
