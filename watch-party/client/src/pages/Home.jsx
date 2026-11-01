@@ -177,7 +177,7 @@ export default function Home() {
             <button type="button" className="secondary-btn" onClick={handleDemo} disabled={busy}>
               Try a demo room
             </button>
-            <p>No name needed. Opens a room with the Avengers: Endgame trailer.</p>
+            <p>No name needed. Loads the Avengers: Endgame trailer.</p>
           </div>
 
           {error && <p className="error">{error}</p>}
