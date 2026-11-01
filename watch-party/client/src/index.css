@@ -134,9 +134,8 @@ label {
   font-weight: 600;
 }
 
-input[type="text"],
-input[type="url"],
-input {
+/* Text-like fields only; the video player's range sliders style themselves. */
+input:not([type="range"]) {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -150,7 +149,7 @@ input {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-input:focus {
+input:not([type="range"]):focus {
   border-color: var(--beige);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -574,8 +573,8 @@ button[type="submit"]:disabled {
 
 .room-header h2 {
   margin: 0;
-  font-size: clamp(21px, 5vw, 30px);
-  font-weight: 800;
+  font-size: clamp(20px, 4.5vw, 26px);
+  font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
@@ -1400,9 +1399,7 @@ button[type="submit"]:disabled {
 }
 
 @media (min-width: 768px) {
-  input[type="text"],
-  input[type="url"],
-  input {
+  input:not([type="range"]) {
     font-size: 14.5px;
   }
 
