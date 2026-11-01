@@ -251,3 +251,7 @@ pointed at the same URL does the same job with more reliable timing.
 - More player adapters — Vimeo, Twitch — reusing the existing sync engine
 - Redis adapter for presence and the voice roster, so the service can run more
   than one instance
+
+## License
+
+[MIT](LICENSE)
