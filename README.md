@@ -2,21 +2,24 @@
 
 [![Tests](https://github.com/Nandita-Dash/Watch-party/actions/workflows/test.yml/badge.svg)](https://github.com/Nandita-Dash/Watch-party/actions/workflows/test.yml)
 
-Paste a video link, share a room code, watch together — perfectly in sync,
-even across different networks, devices, and clocks.
+**The problem:** keep several browsers playing the same video at the same
+moment, when every one of them has a different clock, a different network
+delay to the server, and buffers at different times. Broadcasting "play" isn't
+enough; clients drift apart within seconds.
 
-**[▶ Open the live app](https://watch-party-cyqk.onrender.com)** — it runs on a
-free Render instance, so the first request after a quiet spell takes ~50s to
-wake up.
+**This project** estimates each browser's clock offset from the server,
+derives where playback *should* be from one shared timestamp, and corrects
+every client every 300 ms, aiming to keep each viewer within 150 ms of the
+others. Rooms also have chat, presence and peer-to-peer voice.
+
+**[▶ Open the live app](https://watch-party-cyqk.onrender.com)** and press
+**Try a demo room**. No sign-up is needed. Then open the invite link in a second
+window to watch from two places at once. It runs on a free Render instance, so
+the first request after a quiet spell takes ~50s to wake up.
 
 ![The Watch Party room: synced video player with custom controls on the left,
 participant list and room chat on the right, and a Synced indicator in the
 header.](docs/screenshot-room.jpg)
-
-A full-stack real-time application built to demonstrate systems-level
-engineering rather than CRUD: keeping playback synchronized across multiple
-clients requires actively correcting for network latency and clock
-disagreement, which is the core problem this project solves.
 
 **Stack:** React 19 · Node.js / Express · Socket.IO · WebRTC · SQLite (zero
 native dependencies) · JWT auth
@@ -29,7 +32,8 @@ native dependencies) · JWT auth
 
 ## What it does
 
-- **Create or join a room** with a short shareable code — no signup required
+- **Create or join a room** with a short shareable code — no signup required,
+  or start a one-click demo room with a sample video
 - **Synchronized playback** — play, pause, and seek propagate to everyone in
   the room in real time
 - **Direct video files or YouTube** — both drive the same sync engine through
@@ -147,8 +151,11 @@ watch-party/
         └── lib/        clockSync.js    the drift-correction math
                         youtubePlayer.js YouTube IFrame adapter
                         useVoiceChat.js  mesh WebRTC hook
-                        api, socket, session, avatar, useReveal
+                        api, socket, session, avatar
 ```
+
+Each package has a `test/` folder: `client/test` covers the clock-sync math,
+`server/test` covers the socket handlers and rate limiter.
 
 ## Running it locally
 
@@ -168,6 +175,17 @@ Open two browser windows — one normal, one incognito, since tokens live in
 `sessionStorage` and tabs in the same window share an identity. Create a room
 in one, join with its code in the other, load a video, and hit play: both stay
 in sync, and the header pill reports the drift.
+
+### Tests
+
+```bash
+cd watch-party/client && npm test   # clock offset + projectPosition
+cd watch-party/server && npm test   # socket handlers, room isolation, rate limiting
+```
+
+Both use Node's built-in test runner. The server tests start a real Socket.IO
+server against an in-memory SQLite database (`DB_PATH=:memory:`). CI runs both
+on every pull request, and also builds the client.
 
 There's also a scripted two-client integration check
 (`watch-party/client/scripts/demo-flow.mjs`) that exercises room creation,
@@ -246,11 +264,19 @@ pointed at the same URL does the same job with more reliable timing.
 
 ## Roadmap
 
-- Host-only playback controls with a "request control" flow
-- A TURN server, so voice works from behind symmetric NAT
-- More player adapters — Vimeo, Twitch — reusing the existing sync engine
-- Redis adapter for presence and the voice roster, so the service can run more
-  than one instance
+Planned work, each tracked as an issue with its scope and a "done when":
+
+| | Why it's hard |
+| --- | --- |
+| [Drift benchmark](https://github.com/Nandita-Dash/Watch-party/issues/8): N headless browsers under shaped networks | Measuring many players' positions against one reference clock under latency, jitter and loss, without the measurement skewing the result |
+| [Sync Lab page](https://github.com/Nandita-Dash/Watch-party/issues/9): network sliders and a live drift chart | Simulating bad networks inside the browser, and streaming every client's drift without touching the rate-limited, DB-writing paths |
+| [Restore playback state after reconnect](https://github.com/Nandita-Dash/Watch-party/issues/10) | A reconnect snapshot can race with in-flight broadcasts, so the newest state has to win by timestamp, not by arrival order |
+| [Gradual catch-up after buffering](https://github.com/Nandita-Dash/Watch-party/issues/11) | Telling a local stall apart from someone else's seek, and catching up without audible speed changes |
+| [Multiple server instances](https://github.com/Nandita-Dash/Watch-party/issues/12): Redis adapter + load test | Presence, the voice roster and SQLite are all process-local today |
+| [TURN server for voice](https://github.com/Nandita-Dash/Watch-party/issues/13) | Relaying real audio costs bandwidth, and credentials must be short-lived and minted per user |
+| [Voice for larger groups via an SFU](https://github.com/Nandita-Dash/Watch-party/issues/14) | A mesh is `n(n-1)/2` connections; an SFU means a new stateful media server |
+| [Host-only controls](https://github.com/Nandita-Dash/Watch-party/issues/15) with request-control | A server-side authority model, including handing over control when the host drops |
+| [Vimeo and Twitch adapters](https://github.com/Nandita-Dash/Watch-party/issues/16) | Each embed API behaves differently, and live streams can't be seeked at all |
 
 ## License
 
