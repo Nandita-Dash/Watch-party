@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { createRoom, joinRoom } from "../lib/api.js";
 import { saveToken } from "../lib/session.js";
 
-const SAMPLE_VIDEO = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+// The official trailer from Marvel's own channel, embedded through YouTube's
+// player rather than rehosted, so it plays under YouTube's embed licence.
+const SAMPLE_VIDEO = "https://www.youtube.com/watch?v=TcMBFSGVi1c";
 
 const SYNC_STEPS = [
   {
@@ -51,7 +53,7 @@ export default function Home() {
     }
   }
 
-  // One click, no form: a throwaway room with a sample video, so someone
+  // One click, no form: a throwaway room with a trailer loaded, so someone
   // trying the app can see sync working before deciding to invite anyone.
   async function handleDemo() {
     setError(null);
@@ -175,7 +177,7 @@ export default function Home() {
             <button type="button" className="secondary-btn" onClick={handleDemo} disabled={busy}>
               Try a demo room
             </button>
-            <p>No name needed. Opens a room with a sample video.</p>
+            <p>No name needed. Opens a room with the Avengers: Endgame trailer.</p>
           </div>
 
           {error && <p className="error">{error}</p>}
