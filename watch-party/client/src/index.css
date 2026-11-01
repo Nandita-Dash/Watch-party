@@ -104,12 +104,8 @@ h3 {
 button {
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease,
-    transform 0.15s ease, opacity 0.18s ease, box-shadow 0.2s ease;
-}
-
-button:active {
-  transform: scale(0.97);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    opacity 0.15s ease;
 }
 
 :focus-visible {
@@ -120,58 +116,6 @@ button:active {
 
 input {
   font-family: inherit;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes drift {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(30px, -22px) scale(1.06);
-  }
-}
-
-@keyframes meshHue {
-  0%,
-  100% {
-    filter: blur(20px) hue-rotate(0deg);
-  }
-  50% {
-    filter: blur(26px) hue-rotate(35deg);
-  }
-}
-
-@keyframes pulseRing {
-  0% {
-    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
-  }
 }
 
 @keyframes spin {
@@ -206,19 +150,9 @@ input {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-@keyframes focusRingGrow {
-  from {
-    box-shadow: 0 0 0 0 var(--accent-soft);
-  }
-  to {
-    box-shadow: 0 0 0 3px var(--accent-soft);
-  }
-}
-
 input:focus {
   border-color: var(--beige);
   box-shadow: 0 0 0 3px var(--accent-soft);
-  animation: focusRingGrow 0.3s ease-out;
 }
 
 input::placeholder {
@@ -230,7 +164,6 @@ form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  animation: fadeIn 0.25s ease;
 }
 
 button[type="submit"] {
@@ -278,7 +211,6 @@ button[type="submit"]:disabled {
   border-color: var(--beige);
   color: var(--beige-strong);
   box-shadow: var(--shadow-sm);
-  transform: translateY(-2px) scale(1.03);
 }
 
 /* ---------------- Voice chat ---------------- */
@@ -307,7 +239,6 @@ button[type="submit"]:disabled {
   border-color: var(--online);
   color: var(--online);
   box-shadow: var(--shadow-sm);
-  transform: translateY(-2px) scale(1.03);
 }
 
 .voice-controls {
@@ -323,7 +254,6 @@ button[type="submit"]:disabled {
 
 .voice-btn.mic:hover {
   box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.15);
-  transform: translateY(-2px) scale(1.05);
 }
 
 .voice-btn.mic.muted {
@@ -343,7 +273,6 @@ button[type="submit"]:disabled {
 .voice-btn.leave:hover {
   border-color: var(--danger);
   color: var(--danger);
-  transform: translateY(-2px) scale(1.05);
 }
 
 .voice-error {
@@ -385,30 +314,6 @@ button[type="submit"]:disabled {
   padding-left: max(clamp(16px, 5vw, 24px), var(--safe-l));
   padding-right: max(clamp(16px, 5vw, 24px), var(--safe-r));
   padding-bottom: max(80px, calc(var(--safe-b) + 40px));
-}
-
-.home-glow {
-  position: absolute;
-  width: 560px;
-  height: 560px;
-  border-radius: 50%;
-  filter: blur(20px);
-  pointer-events: none;
-  z-index: 0;
-  animation: drift 16s ease-in-out infinite, meshHue 24s ease-in-out infinite;
-}
-
-.home-glow-1 {
-  top: -220px;
-  left: -180px;
-  background: radial-gradient(circle, rgba(201, 162, 106, 0.28), transparent 70%);
-}
-
-.home-glow-2 {
-  top: 160px;
-  right: -220px;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.24), transparent 70%);
-  animation-delay: -8s;
 }
 
 .home-nav {
@@ -468,7 +373,6 @@ button[type="submit"]:disabled {
 }
 
 .hero-content {
-  animation: fadeInUp 0.6s ease both;
   min-width: 0;
 }
 
@@ -561,12 +465,10 @@ button[type="submit"]:disabled {
   position: relative;
   z-index: 1;
   min-width: 0;
-  background: linear-gradient(180deg, var(--bg-raised), var(--bg-input));
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: clamp(16px, 3vw, var(--radius));
   padding: clamp(22px, 5vw, 34px);
-  box-shadow: var(--shadow-lg);
-  animation: fadeInUp 0.6s ease 0.1s both;
 }
 
 .hero-panel h2 {
@@ -624,32 +526,6 @@ button[type="submit"]:disabled {
   background: var(--bg);
 }
 
-.room::before,
-.room::after {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  width: 620px;
-  height: 620px;
-  border-radius: 50%;
-  filter: blur(20px);
-  pointer-events: none;
-  animation: drift 22s ease-in-out infinite, meshHue 26s ease-in-out infinite;
-}
-
-.room::before {
-  top: -260px;
-  left: -220px;
-  background: radial-gradient(circle, rgba(201, 162, 106, 0.22), transparent 70%);
-}
-
-.room::after {
-  bottom: -280px;
-  right: -240px;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.18), transparent 70%);
-  animation-delay: -11s, -13s;
-}
-
 .room-header {
   position: relative;
   z-index: 1;
@@ -693,12 +569,10 @@ button[type="submit"]:disabled {
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--online);
-  animation: pulseRing 2s infinite;
 }
 
 .conn-dot.offline {
   background: var(--danger);
-  animation: none;
 }
 
 .header-actions {
@@ -724,7 +598,7 @@ button[type="submit"]:disabled {
   padding: 6px 12px;
   border-radius: var(--radius-full);
   overflow-wrap: anywhere;
-  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .code-pill svg {
@@ -738,25 +612,11 @@ button[type="submit"]:disabled {
   border-color: var(--beige);
   color: var(--beige-strong);
   box-shadow: var(--shadow-sm);
-  transform: translateY(-2px) scale(1.03);
 }
 
-@keyframes copiedBounce {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(1.12);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.code-pill.copied-bounce {
+.code-pill.copied {
   border-color: var(--online);
   color: var(--online);
-  animation: copiedBounce 0.4s ease;
 }
 
 .sync-pill {
@@ -808,19 +668,16 @@ button[type="submit"]:disabled {
 
 /* ---------------- Player ---------------- */
 .player {
-  --frame-glow: 236, 72, 153;
   position: relative;
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-md), 0 0 100px 6px rgba(var(--frame-glow), 0.22);
   padding: var(--gutter);
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
   min-height: 0;
-  transition: box-shadow 1.4s ease;
 }
 
 .player-stage {
@@ -921,11 +778,6 @@ button[type="submit"]:disabled {
 
 .ctrl-btn:hover {
   background: rgba(255, 255, 255, 0.14);
-  transform: scale(1.1);
-}
-
-.ctrl-btn:active {
-  transform: scale(0.92);
 }
 
 .ctrl-btn svg {
@@ -1084,8 +936,6 @@ button[type="submit"]:disabled {
 }
 
 .load-form button {
-  position: relative;
-  overflow: hidden;
   flex: 0 0 auto;
   min-height: var(--tap);
   padding: 0 18px;
@@ -1096,19 +946,6 @@ button[type="submit"]:disabled {
   font-weight: 600;
   font-size: 13.5px;
   white-space: nowrap;
-}
-
-.load-form button::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
-  transform: translateX(-120%);
-}
-
-.load-form button:hover::after {
-  transform: translateX(120%);
-  transition: transform 0.7s ease;
 }
 
 .load-form button:hover {
@@ -1201,7 +1038,6 @@ button[type="submit"]:disabled {
   padding: 6px 8px;
   border-radius: var(--radius);
   overflow-wrap: anywhere;
-  animation: fadeIn 0.2s ease;
   transition: background-color 0.15s ease;
 }
 
@@ -1319,7 +1155,6 @@ button[type="submit"]:disabled {
   gap: 9px;
   font-size: 14px;
   line-height: 1.4;
-  animation: fadeInUp 0.25s ease both;
 }
 
 .chat-msg-content {

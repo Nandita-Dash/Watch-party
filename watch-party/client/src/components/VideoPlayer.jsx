@@ -44,7 +44,6 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback, 
   const [muted, setMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [frameGlow, setFrameGlow] = useState(null); // "r, g, b" — presentational only, best-effort
 
   const youtubeId = extractYouTubeId(videoUrl);
 
@@ -279,52 +278,6 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback, 
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
-  // Best-effort ambient glow: sample the current frame's average color once a
-  // second while playing. Cross-origin video without permissive CORS headers
-  // taints the canvas and throws on readback — that's expected for most
-  // pasted URLs, so it just falls back to the static violet glow (the CSS
-  // default for --frame-glow) rather than surfacing an error.
-  useEffect(() => {
-    if (!videoUrl || youtubeId) {
-      setFrameGlow(null);
-      return undefined;
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = 16;
-    canvas.height = 9;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    let cancelled = false;
-
-    const sample = () => {
-      if (cancelled) return;
-      const el = videoRef.current;
-      if (!el || el.paused || el.readyState < 2) return;
-      try {
-        ctx.drawImage(el, 0, 0, 16, 9);
-        const { data } = ctx.getImageData(0, 0, 16, 9);
-        let r = 0;
-        let g = 0;
-        let b = 0;
-        const pixels = data.length / 4;
-        for (let i = 0; i < data.length; i += 4) {
-          r += data[i];
-          g += data[i + 1];
-          b += data[i + 2];
-        }
-        setFrameGlow(`${Math.round(r / pixels)}, ${Math.round(g / pixels)}, ${Math.round(b / pixels)}`);
-      } catch {
-        setFrameGlow(null); // tainted canvas (CORS) — fall back silently
-        cancelled = true;
-      }
-    };
-
-    const timer = setInterval(sample, 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [videoUrl, youtubeId]);
-
   // Auto-hide the control bar while playing and idle; always show when paused.
   useEffect(() => {
     if (!isPlaying) {
@@ -348,7 +301,7 @@ export default function VideoPlayer({ socket, initialVideoUrl, initialPlayback, 
   const scrubFillPct = duration > 0 ? (shownTime / duration) * 100 : 0;
 
   return (
-    <div className="player" style={frameGlow ? { "--frame-glow": frameGlow } : undefined}>
+    <div className="player">
       {/* The stage is what the responsive layout sizes — it hands the frame
           whatever height is left over and keeps it 16:9. */}
       <div className="player-stage">

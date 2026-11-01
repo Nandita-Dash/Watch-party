@@ -107,7 +107,7 @@ export default function Room() {
             <span className={`conn-dot ${connected ? "" : "offline"}`} title={connected ? "Connected" : "Reconnecting…"} />
             <h2>{data.room.name}</h2>
             <button
-              className={`code-pill ${copied ? "copied-bounce" : ""}`}
+              className={`code-pill ${copied ? "copied" : ""}`}
               onClick={handleCopyInvite}
               title="Copy invite link"
             >
